@@ -77,7 +77,7 @@ async def removeMedium(conn:psycopg.AsyncConnection, mediumName: str):
             await conn.commit()
             return await getMediumUUID(conn, mediumName)
         else:
-            return MediumNotFoundError(mediumName)
+            raise MediumNotFoundError(mediumName)
 
 async def modifyMedium(conn:psycopg.AsyncConnection, mediumID: str, newMediumName: str ):
     async with conn.cursor() as cur:
@@ -94,6 +94,19 @@ async def modifyMedium(conn:psycopg.AsyncConnection, mediumID: str, newMediumNam
 #################################################
 #           Review Table Queries                #
 #################################################
+
+
+async def addReview(conn:psycopg.AsyncConnection, review: str, userID: str, draft: bool, albumid: str):
+    if verifyUserUUID(conn,userID) is None:
+        raise UserNotFoundError(userID)
+    async with conn.cursor() as cur:
+        await cur.execute("INSERT INTO review (userid, review, draft) VALUES (%s, %s, %s)", (userID, review, draft))
+        await cur.commit()
+
+        #add to review_album here
+        return 1
+
+
 
 #################################################
 #             User Table Queries                #
@@ -120,7 +133,7 @@ async def addUser(conn:psycopg.AsyncConnection, firstName: str, lastName: str, e
             raise UserAlreadyExistsError(email)
 
 async def deleteUser(conn:psycopg.AsyncConnection, userID: str):
-    if await verifyUserUUID(userID) is None:
+    if await verifyUserUUID(conn, userID) is None:
         raise UserNotFoundError(userID)
     else:
         async with conn.cursor() as cur:
@@ -129,7 +142,7 @@ async def deleteUser(conn:psycopg.AsyncConnection, userID: str):
             return await verifyUserUUID(conn,userID)
 
 async def getUserRole(conn:psycopg.AsyncConnection, userID: str):
-    if await verifyUserUUID(userID) is None:
+    if await verifyUserUUID(conn, userID) is None:
         raise UserNotFoundError(userID)
     else:
         async with conn.cursor() as cur:
@@ -140,7 +153,7 @@ async def getUserRole(conn:psycopg.AsyncConnection, userID: str):
 async def setUserRole(conn:psycopg.AsyncConnection, userID: str, userRole: str):
     if userRole not in ["member", "staff", "eboard"]:
         raise RoleNotFound(userRole)
-    elif await verifyUserUUID(userID) is None:
+    elif await verifyUserUUID(conn, userID) is None:
         raise UserNotFoundError(userID)
     else:
         async with conn.cursor() as cur:
@@ -149,7 +162,7 @@ async def setUserRole(conn:psycopg.AsyncConnection, userID: str, userRole: str):
             return await getUserRole(conn,userID)
 
 async def modifyEmail(conn:psycopg.AsyncConnection, userID: str, newEmail: str):
-    if await verifyUserUUID(userID) is None:
+    if await verifyUserUUID(conn, userID) is None:
         raise UserNotFoundError(userID)
     else:
         async with conn.cursor() as cur:
@@ -158,17 +171,55 @@ async def modifyEmail(conn:psycopg.AsyncConnection, userID: str, newEmail: str):
             return await verifyUserUUID(conn,userID) #TODO: return something useful if needed
 
 async def modifyFirstName(conn:psycopg.AsyncConnection, userID: str, newName: str):
-    if await verifyUserUUID(userID) is None:
+    if await verifyUserUUID(conn, userID) is None:
         raise UserNotFoundError(userID)
     else:
         async with conn.cursor() as cur:
             await cur.execute("UPDATE user SET firstname = %s WHERE userid = %s", (newName, userID))
             await conn.commit()
             return await verifyUserUUID(conn,userID) #TODO: return something useful if needed
-          
-#################################################
-#          Review_Album Table Queries           #
-#################################################
+
+async def modifyLastName(conn:psycopg.AsyncConnection, userID: str, newName: str):
+    if await verifyUserUUID(conn, userID) is None:
+        raise UserNotFoundError(userID)
+    else:
+        async with conn.cursor() as cur:
+            await cur.execute("UPDATE user SET lastname = %s WHERE userid = %s", (newName, userID))
+            await conn.commit()
+            return await verifyUserUUID(conn,userID) #TODO: return something useful if needed
+
+async def getFirstName(conn:psycopg.AsyncConnection, userID:str):
+    if await verifyUserUUID(conn,userID) is None:
+        raise UserNotFoundError(userID)
+    else:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT firstname FROM user WHERE userid = %s",(userID,))
+            name = await cur.fetchone()
+            return str(name[0]) if name else None
+        
+async def getLastName(conn:psycopg.AsyncConnection, userID:str):
+    if await verifyUserUUID(conn,userID) is None:
+        raise UserNotFoundError(userID)
+    else:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT lastname FROM user WHERE userid = %s",(userID,))
+            name = await cur.fetchone()
+            return str(name[0]) if name else None
+
+async def getUserInitials(conn:psycopg.AsyncConnection, userID:str):
+    if await verifyUserUUID(conn,userID) is None:
+        raise UserNotFoundError(userID)
+    else:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT firstname, lastname FROM user WHERE userid = %s",(userID,))
+            name = await cur.fetchone()
+            if name is None:
+                return None
+            fn = name[0]
+            ln = name[1]
+            initials = fn[0]+ln[0]
+            return initials 
+
 
 #################################################
 #          Album_Medium Table Queries           #

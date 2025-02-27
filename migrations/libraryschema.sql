@@ -15,6 +15,7 @@ CREATE TABLE review (
     userID uuid NOT NULL,
     reviewDate timestamptz NOT NULL DEFAULT now(),
     hidden bool NOT NULL DEFAULT False,
+    draft bool NOT NULL DEFAULT False,
     CONSTRAINT USERS_USERID_FK FOREIGN KEY (userID) REFERENCES users(userID)
 );
 
@@ -55,11 +56,14 @@ CREATE TABLE album_artist (
     PRIMARY KEY (artistID, albumID)
 );
 
-CREATE TABLE review_album (
-    reviewID uuid REFERENCES review(reviewID),
-    albumID uuid REFERENCES album(albumID),
-    PRIMARY KEY (reviewID, albumID)
-);
+
+-- Removed because each review cannot have multiple albums they apply to however each album can have multiple reviews
+-- Getting reviews will query review table to see where album id matches
+-- CREATE TABLE review_album (
+--     reviewID uuid REFERENCES review(reviewID),
+--     albumID uuid REFERENCES album(albumID),
+--     PRIMARY KEY (reviewID, albumID)
+-- );
 
 CREATE TABLE album_medium (
     album_UPC varchar(20),
